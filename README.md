@@ -84,35 +84,46 @@ Dependencies are tracked in `pyproject.toml`, and exact resolved versions are lo
    python -c "import sounddevice as sd; print(sd.query_devices())"
    ```
 
-## Local LLM post-processing (Ollama)
+## Local LLM post-processing (`llama-cpp-python`)
 
-Use a local LLM to transform `transcription.txt` with a prompt template and save the result to a new file.
+Use a local GGUF model directly from Python (no separate Ollama service).
 
-1. **Install Ollama**
-   - [https://ollama.com/download](https://ollama.com/download)
-
-2. **Pull one or more local models**
+1. **Install Python dependencies**
    ```bash
-   ollama pull llama3.2
-   ollama pull mistral
+   uv sync
    ```
 
-3. **Run speech transcription first**
+2. **Run speech transcription first**
    ```bash
    python main.py
    ```
 
-4. **Generate LLM output from transcription + prompt file**
+3. **Generate LLM output (download model from Hugging Face)**
    ```bash
-   python llm_postprocess.py --model llama3.2 --input-text transcription.txt --prompt-file prompts/joke_prompt.txt --output-file llm_response.txt
+   python llm_postprocess.py \
+     --hf-repo bartowski/Llama-3.2-3B-Instruct-GGUF \
+     --hf-filename Llama-3.2-3B-Instruct-Q4_K_M.gguf \
+     --input-text transcription.txt \
+     --prompt-file prompts/joke_prompt.txt \
+     --output-file llm_response.txt
    ```
 
-5. **Try different local models**
+4. **Try a different model**
    ```bash
-   python llm_postprocess.py --model mistral --input-text transcription.txt --prompt-file prompts/joke_prompt.txt --output-file llm_response_mistral.txt
+   python llm_postprocess.py \
+     --hf-repo bartowski/Mistral-7B-Instruct-v0.2-GGUF \
+     --hf-filename Mistral-7B-Instruct-v0.2-Q4_K_M.gguf \
+     --input-text transcription.txt \
+     --prompt-file prompts/joke_prompt.txt \
+     --output-file llm_response_mistral.txt
+   ```
+
+5. **Use a model file you already downloaded**
+   ```bash
+   python llm_postprocess.py --model-file models/your-model.gguf --input-text transcription.txt --prompt-file prompts/joke_prompt.txt --output-file llm_response.txt
    ```
 
 Notes:
 - The prompt file supports a `{transcription}` placeholder.
 - The included test prompt is `prompts/joke_prompt.txt` (turns speech text into a joke).
-- If Ollama is not running, start it (`ollama serve`) and retry.
+- Downloaded model files are stored in `models/` by default.

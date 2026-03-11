@@ -9,4 +9,6 @@ dependencies = [
     "sounddevice",
     "scipy",
     "faster-whisper",
+    "llama-cpp-python",
+    "huggingface-hub",
 ]

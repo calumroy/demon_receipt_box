@@ -1,16 +1,14 @@
 from __future__ import annotations
 
 import argparse
-import json
 from pathlib import Path
-from urllib import error, request
 
 
 DEFAULT_TRANSCRIPTION_FILE = "transcription.txt"
 DEFAULT_PROMPT_FILE = "prompts/joke_prompt.txt"
 DEFAULT_OUTPUT_FILE = "llm_response.txt"
-DEFAULT_MODEL = "llama3.2"
-DEFAULT_OLLAMA_URL = "http://127.0.0.1:11434"
+DEFAULT_MODEL_PATH = "models"
+DEFAULT_MAX_TOKENS = 256
 
 
 def read_text(path: str) -> str:
@@ -30,57 +28,80 @@ def build_prompt(prompt_template: str, transcription: str) -> str:
     )
 
 
-def call_ollama(
-    model: str,
-    prompt: str,
-    ollama_url: str,
-    temperature: float | None,
+def resolve_model_path(
+    model_file: str | None,
+    hf_repo: str | None,
+    hf_filename: str | None,
+    model_dir: str,
 ) -> str:
-    endpoint = f"{ollama_url.rstrip('/')}/api/generate"
-    payload: dict[str, object] = {
-        "model": model,
-        "prompt": prompt,
-        "stream": False,
-    }
+    if model_file:
+        path = Path(model_file)
+        if not path.exists():
+            raise FileNotFoundError(
+                f"Model file not found: {model_file}. Provide an existing GGUF file."
+            )
+        return str(path)
 
-    if temperature is not None:
-        payload["options"] = {"temperature": temperature}
-
-    req = request.Request(
-        endpoint,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
+    if not hf_repo or not hf_filename:
+        raise ValueError(
+            "Provide either --model-file, or both --hf-repo and --hf-filename."
+        )
 
     try:
-        with request.urlopen(req, timeout=180) as response:
-            body = response.read().decode("utf-8")
-    except error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")
+        from huggingface_hub import hf_hub_download
+    except ImportError as exc:
         raise RuntimeError(
-            f"Ollama returned HTTP {exc.code}. Response: {detail}"
-        ) from exc
-    except error.URLError as exc:
-        raise RuntimeError(
-            "Cannot connect to Ollama. Start it first (for example, run `ollama serve`)."
+            "huggingface_hub is not installed. Run `uv sync` first."
         ) from exc
 
-    data = json.loads(body)
-    llm_output = data.get("response", "").strip()
-    if not llm_output:
-        raise RuntimeError("Ollama response was empty.")
-    return llm_output
+    Path(model_dir).mkdir(parents=True, exist_ok=True)
+    return hf_hub_download(
+        repo_id=hf_repo,
+        filename=hf_filename,
+        local_dir=model_dir,
+    )
+
+
+def run_llama_cpp(
+    model_path: str,
+    prompt: str,
+    temperature: float,
+    max_tokens: int,
+    context_size: int,
+    threads: int | None,
+) -> str:
+    try:
+        from llama_cpp import Llama  # type: ignore[reportMissingImports]
+    except ImportError as exc:
+        raise RuntimeError(
+            "llama-cpp-python is not installed. Run `uv sync` first."
+        ) from exc
+
+    llm = Llama(
+        model_path=model_path,
+        n_ctx=context_size,
+        n_threads=threads,
+        verbose=False,
+    )
+
+    result = llm.create_completion(
+        prompt=prompt,
+        max_tokens=max_tokens,
+        temperature=temperature,
+    )
+    text = result["choices"][0]["text"].strip()
+    if not text:
+        raise RuntimeError("Model returned empty output.")
+    return text
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Read transcription + prompt file, send to local Ollama model, "
+            "Read transcription + prompt file, run local llama.cpp model, "
             "and save LLM output to a text file."
         )
     )
-    parser.add_argument("--model", default=DEFAULT_MODEL, help="Ollama model name")
     parser.add_argument(
         "--input-text",
         default=DEFAULT_TRANSCRIPTION_FILE,
@@ -97,15 +118,48 @@ def parse_args() -> argparse.Namespace:
         help="Path for generated LLM response text",
     )
     parser.add_argument(
-        "--ollama-url",
-        default=DEFAULT_OLLAMA_URL,
-        help="Base URL for local Ollama server",
+        "--model-file",
+        default=None,
+        help="Path to a local GGUF model file",
+    )
+    parser.add_argument(
+        "--hf-repo",
+        default=None,
+        help="Optional Hugging Face repo ID for GGUF download (for example bartowski/Llama-3.2-3B-Instruct-GGUF)",
+    )
+    parser.add_argument(
+        "--hf-filename",
+        default=None,
+        help="Optional GGUF filename in the Hugging Face repo (for example Llama-3.2-3B-Instruct-Q4_K_M.gguf)",
+    )
+    parser.add_argument(
+        "--model-dir",
+        default=DEFAULT_MODEL_PATH,
+        help="Directory used to store downloaded model files",
     )
     parser.add_argument(
         "--temperature",
         type=float,
+        default=0.7,
+        help="Generation temperature",
+    )
+    parser.add_argument(
+        "--max-tokens",
+        type=int,
+        default=DEFAULT_MAX_TOKENS,
+        help="Maximum number of generated tokens",
+    )
+    parser.add_argument(
+        "--context-size",
+        type=int,
+        default=4096,
+        help="Context window size for llama.cpp",
+    )
+    parser.add_argument(
+        "--threads",
+        type=int,
         default=None,
-        help="Optional generation temperature",
+        help="Optional CPU thread count for inference",
     )
     return parser.parse_args()
 
@@ -118,11 +172,21 @@ def main() -> int:
         prompt_template = read_text(args.prompt_file)
         final_prompt = build_prompt(prompt_template, transcription)
 
-        llm_output = call_ollama(
-            model=args.model,
+        model_path = resolve_model_path(
+            model_file=args.model_file,
+            hf_repo=args.hf_repo,
+            hf_filename=args.hf_filename,
+            model_dir=args.model_dir,
+        )
+        print(f"Using model file: {model_path}")
+
+        llm_output = run_llama_cpp(
+            model_path=model_path,
             prompt=final_prompt,
-            ollama_url=args.ollama_url,
             temperature=args.temperature,
+            max_tokens=args.max_tokens,
+            context_size=args.context_size,
+            threads=args.threads,
         )
 
         Path(args.output_file).write_text(llm_output + "\n", encoding="utf-8")
