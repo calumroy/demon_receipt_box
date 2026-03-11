@@ -1,0 +1,12 @@
+[project]
+name = "demon-receipt-box"
+version = "0.1.0"
+description = "Voice recorder with local offline speech-to-text transcription"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "numpy",
+    "sounddevice",
+    "scipy",
+    "faster-whisper",
+]
