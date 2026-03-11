@@ -83,3 +83,36 @@ Dependencies are tracked in `pyproject.toml`, and exact resolved versions are lo
    ```bash
    python -c "import sounddevice as sd; print(sd.query_devices())"
    ```
+
+## Local LLM post-processing (Ollama)
+
+Use a local LLM to transform `transcription.txt` with a prompt template and save the result to a new file.
+
+1. **Install Ollama**
+   - [https://ollama.com/download](https://ollama.com/download)
+
+2. **Pull one or more local models**
+   ```bash
+   ollama pull llama3.2
+   ollama pull mistral
+   ```
+
+3. **Run speech transcription first**
+   ```bash
+   python main.py
+   ```
+
+4. **Generate LLM output from transcription + prompt file**
+   ```bash
+   python llm_postprocess.py --model llama3.2 --input-text transcription.txt --prompt-file prompts/joke_prompt.txt --output-file llm_response.txt
+   ```
+
+5. **Try different local models**
+   ```bash
+   python llm_postprocess.py --model mistral --input-text transcription.txt --prompt-file prompts/joke_prompt.txt --output-file llm_response_mistral.txt
+   ```
+
+Notes:
+- The prompt file supports a `{transcription}` placeholder.
+- The included test prompt is `prompts/joke_prompt.txt` (turns speech text into a joke).
+- If Ollama is not running, start it (`ollama serve`) and retry.
