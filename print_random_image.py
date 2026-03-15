@@ -17,8 +17,8 @@ DEFAULT_PRINTER = "XP-80C"
 PRINT_WIDTH_PX = 576
 
 
-def image_to_escpos_raster(image_path: Path) -> bytes:
-    from PIL import Image
+def image_to_escpos_raster(image_path: Path, brightness: float = 1.0) -> bytes:
+    from PIL import Image, ImageEnhance
 
     img = Image.open(image_path)
 
@@ -26,6 +26,10 @@ def image_to_escpos_raster(image_path: Path) -> bytes:
         ratio = PRINT_WIDTH_PX / img.width
         new_h = int(img.height * ratio)
         img = img.resize((PRINT_WIDTH_PX, new_h), Image.LANCZOS)
+
+    if brightness != 1.0:
+        img = img.convert("L")
+        img = ImageEnhance.Brightness(img).enhance(brightness)
 
     img = img.convert("1")
 
@@ -48,14 +52,14 @@ def image_to_escpos_raster(image_path: Path) -> bytes:
     return header + bytes(data)
 
 
-def build_image_receipt(image_path: Path) -> bytes:
+def build_image_receipt(image_path: Path, brightness: float = 1.0) -> bytes:
     ESC = b"\x1b"
     GS = b"\x1d"
 
     payload = bytearray()
     payload += ESC + b"@"
 
-    payload += image_to_escpos_raster(image_path)
+    payload += image_to_escpos_raster(image_path, brightness)
 
     payload += b"\n\n\n\n"
     payload += GS + b"V\x41\x03"
@@ -103,6 +107,12 @@ def main():
         help=f"Folder with PNGs (default: {PRINTABLES_DIR})",
     )
     parser.add_argument(
+        "-b", "--brightness",
+        type=float,
+        default=1.5,
+        help="Brightness multiplier before dithering (default: 1.0, higher = lighter)",
+    )
+    parser.add_argument(
         "--list",
         action="store_true",
         help="List available printers and exit",
@@ -142,7 +152,7 @@ def main():
             input()
             chosen = random.choice(pngs)
             print(f"  Printing {chosen.name}...")
-            data = build_image_receipt(chosen)
+            data = build_image_receipt(chosen, args.brightness)
             send_to_printer(data, args.printer)
             print("  Done!\n")
     except KeyboardInterrupt:
