@@ -14,17 +14,7 @@ from pathlib import Path
 PRINTABLES_DIR = "printables"
 DEFAULT_PRINTER = "XP-80C"
 
-PAPER_TOTAL_PX = 576
-MARGIN_PX = 40
-PRINT_WIDTH_PX = PAPER_TOTAL_PX - 2 * MARGIN_PX
-
-
-def margin_commands() -> bytes:
-    GS = b"\x1d"
-    cmds = bytearray()
-    cmds += GS + b"L" + struct.pack("<H", MARGIN_PX)
-    cmds += GS + b"W" + struct.pack("<H", PRINT_WIDTH_PX)
-    return bytes(cmds)
+PRINT_WIDTH_PX = 576
 
 
 def image_to_escpos_raster(image_path: Path) -> bytes:
@@ -64,7 +54,6 @@ def build_image_receipt(image_path: Path) -> bytes:
 
     payload = bytearray()
     payload += ESC + b"@"
-    payload += margin_commands()
 
     payload += image_to_escpos_raster(image_path)
 
