@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """
-Random receipt printer — picks a random .txt or .png from a folder
-and prints it to a USB ESC/POS thermal printer each time you hit Enter.
+Random receipt printer — each receipt is:
+  1. Header text (from header_always_print.txt)
+  2. A random PNG from printables/
+  3. 5 random lines from slopyanus.txt
+
+Press Enter to print. Ctrl+C to quit.
 """
 
 import argparse
@@ -12,10 +16,13 @@ from pathlib import Path
 
 
 PRINTABLES_DIR = "printables"
-PAPER_TOTAL_PX = 576       # 80mm paper @ 203 DPI
-MARGIN_PX = 40             # 5mm margin @ 8 dots/mm
-PRINT_WIDTH_PX = PAPER_TOTAL_PX - 2 * MARGIN_PX  # 496 dots usable
-PAPER_WIDTH_CHARS = 42     # ~496 / 12 dots per char (default font)
+HEADER_FILE = "header_always_print.txt"
+LINES_FILE = "slopyanus.txt"
+NUM_RANDOM_LINES = 5
+
+PAPER_TOTAL_PX = 576
+MARGIN_PX = 40
+PRINT_WIDTH_PX = PAPER_TOTAL_PX - 2 * MARGIN_PX
 
 
 def list_windows_printers():
@@ -31,35 +38,25 @@ def list_windows_printers():
     ]
 
 
-def get_printable_files(folder: Path) -> list[Path]:
-    exts = {".txt", ".png"}
-    return sorted(f for f in folder.iterdir() if f.suffix.lower() in exts)
-
-
 def margin_commands() -> bytes:
-    """ESC/POS commands to set left margin and printable area width."""
     GS = b"\x1d"
     cmds = bytearray()
-    # GS L — set left margin in dots
     cmds += GS + b"L" + struct.pack("<H", MARGIN_PX)
-    # GS W — set printing area width in dots
     cmds += GS + b"W" + struct.pack("<H", PRINT_WIDTH_PX)
     return bytes(cmds)
 
 
 def image_to_escpos_raster(image_path: Path) -> bytes:
-    """Convert a PNG to ESC/POS raster bit-image bytes."""
     from PIL import Image
 
     img = Image.open(image_path)
 
-    # Scale to fit printable width (minus margins), maintaining aspect ratio
     if img.width != PRINT_WIDTH_PX:
         ratio = PRINT_WIDTH_PX / img.width
         new_h = int(img.height * ratio)
         img = img.resize((PRINT_WIDTH_PX, new_h), Image.LANCZOS)
 
-    img = img.convert("1")  # 1-bit monochrome, dithered
+    img = img.convert("1")
 
     width_bytes = (img.width + 7) // 8
     height = img.height
@@ -69,12 +66,10 @@ def image_to_escpos_raster(image_path: Path) -> bytes:
     for y in range(height):
         row = bytearray(width_bytes)
         for x in range(img.width):
-            if pixels[x, y] == 0:  # black pixel
+            if pixels[x, y] == 0:
                 row[x // 8] |= 0x80 >> (x % 8)
         data.extend(row)
 
-    # GS v 0 — raster bit image
-    # m=0 (normal), xL xH = width_bytes, yL yH = height
     GS = b"\x1d"
     header = GS + b"v0\x00"
     header += struct.pack("<HH", width_bytes, height)
@@ -82,64 +77,64 @@ def image_to_escpos_raster(image_path: Path) -> bytes:
     return header + bytes(data)
 
 
-def build_text_payload(text: str) -> bytes:
+def encode_text(text: str) -> bytes:
+    return text.encode("cp437", errors="replace")
+
+
+def build_receipt(folder: Path, header_text: str, all_lines: list[str]) -> bytes:
     ESC = b"\x1b"
+    GS = b"\x1d"
+
     payload = bytearray()
     payload += ESC + b"@"          # initialize
     payload += margin_commands()
     payload += ESC + b"t\x00"      # code table PC437
-    payload += text.encode("cp437", errors="replace")
-    return bytes(payload)
 
+    # --- header ---
+    payload += encode_text(header_text.rstrip("\n"))
+    payload += b"\n\n"
 
-def build_image_payload(image_path: Path) -> bytes:
-    ESC = b"\x1b"
-    payload = bytearray()
-    payload += ESC + b"@"          # initialize
-    payload += margin_commands()
-    payload += image_to_escpos_raster(image_path)
+    # --- random PNG ---
+    pngs = sorted(f for f in folder.iterdir() if f.suffix.lower() == ".png")
+    if pngs:
+        chosen_png = random.choice(pngs)
+        print(f"  image: {chosen_png.name}")
+        payload += image_to_escpos_raster(chosen_png)
+        payload += b"\n\n"
+    else:
+        print("  (no PNGs found, skipping image)")
+
+    # --- 5 random lines ---
+    if all_lines:
+        picks = random.sample(all_lines, min(NUM_RANDOM_LINES, len(all_lines)))
+        for line in picks:
+            payload += encode_text(line)
+            payload += b"\n"
+
+    # --- feed and cut ---
+    payload += b"\n\n\n\n"
+    payload += GS + b"V\x41\x03"
+
     return bytes(payload)
 
 
 def send_to_printer(data: bytes, printer_name: str):
     import win32print
 
-    GS = b"\x1d"
-    footer = b"\n\n\n\n" + GS + b"V\x41\x03"  # feed + partial cut
-
     handle = win32print.OpenPrinter(printer_name)
     try:
         win32print.StartDocPrinter(handle, 1, ("receipt", None, "RAW"))
         win32print.StartPagePrinter(handle)
-        win32print.WritePrinter(handle, data + footer)
+        win32print.WritePrinter(handle, data)
         win32print.EndPagePrinter(handle)
         win32print.EndDocPrinter(handle)
     finally:
         win32print.ClosePrinter(handle)
 
 
-def print_random(folder: Path, printer_name: str):
-    files = get_printable_files(folder)
-    if not files:
-        print(f"No .txt or .png files in {folder}/")
-        return
-
-    chosen = random.choice(files)
-    print(f"  >> {chosen.name}")
-
-    if chosen.suffix.lower() == ".png":
-        data = build_image_payload(chosen)
-    else:
-        text = chosen.read_text(encoding="utf-8")
-        data = build_text_payload(text)
-
-    send_to_printer(data, printer_name)
-    print("  Printed!")
-
-
 def main():
     parser = argparse.ArgumentParser(
-        description="Press Enter to print a random receipt from a folder"
+        description="Press Enter to print a random composite receipt"
     )
     parser.add_argument(
         "-p", "--printer",
@@ -148,7 +143,7 @@ def main():
     parser.add_argument(
         "-d", "--dir",
         default=PRINTABLES_DIR,
-        help=f"folder of .txt/.png files (default: {PRINTABLES_DIR})",
+        help=f"folder with PNGs, header, and lines file (default: {PRINTABLES_DIR})",
     )
     parser.add_argument(
         "--list",
@@ -179,20 +174,33 @@ def main():
         print(f"Folder not found: {folder}")
         sys.exit(1)
 
-    files = get_printable_files(folder)
-    print(f"Loaded {len(files)} printable files from {folder}/")
-    for f in files:
-        print(f"  {f.name}")
-    print()
+    header_path = folder / HEADER_FILE
+    if not header_path.exists():
+        print(f"Header file not found: {header_path}")
+        sys.exit(1)
+    header_text = header_path.read_text(encoding="utf-8")
+
+    lines_path = folder / LINES_FILE
+    if not lines_path.exists():
+        print(f"Lines file not found: {lines_path}")
+        sys.exit(1)
+    all_lines = [l for l in lines_path.read_text(encoding="utf-8").splitlines() if l.strip()]
+
+    pngs = sorted(f for f in folder.iterdir() if f.suffix.lower() == ".png")
+    print(f"Header:  {header_path.name}")
+    print(f"Images:  {len(pngs)} PNGs")
+    print(f"Lines:   {len(all_lines)} from {lines_path.name} (picking {NUM_RANDOM_LINES} per receipt)")
     print(f"Printer: {args.printer}")
-    print("Press ENTER to print a random receipt (Ctrl+C to quit)")
+    print()
+    print("Press ENTER to print a receipt (Ctrl+C to quit)")
     print()
 
     try:
         while True:
             input()
-            print_random(folder, args.printer)
-            print()
+            data = build_receipt(folder, header_text, all_lines)
+            send_to_printer(data, args.printer)
+            print("  Printed!\n")
     except KeyboardInterrupt:
         print("\nBye!")
 
