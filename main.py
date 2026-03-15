@@ -54,16 +54,19 @@ def find_input_device() -> tuple[int, int]:
                   f"default_sr={d['default_samplerate']:.0f}){marker}")
 
     # Build candidate list: WASAPI first, then DirectSound, then MME, then rest.
+    # Within the same API tier, prefer the device matching the system default name.
     api_priority = {"Windows WASAPI": 0, "Windows DirectSound": 1, "MME": 2}
+    default_name = devices[default_input]["name"] if default_input is not None and default_input >= 0 else ""
     candidates = []
     for i, d in enumerate(devices):
         if d["max_input_channels"] < CHANNELS:
             continue
         api_name = api_names.get(d["hostapi"], "")
         priority = api_priority.get(api_name, 99)
-        candidates.append((priority, i, d))
+        is_default_name = 0 if d["name"] == default_name else 1
+        candidates.append((priority, is_default_name, i, d))
 
-    candidates.sort(key=lambda x: x[0])
+    candidates.sort(key=lambda x: (x[0], x[1]))
 
     if not candidates:
         raise RuntimeError(
@@ -74,7 +77,7 @@ def find_input_device() -> tuple[int, int]:
 
     # Try each candidate with a real test recording.
     sample_rates = [SAMPLE_RATE, 44100, 48000]
-    for priority, dev_id, dev_info in candidates:
+    for priority, _is_default, dev_id, dev_info in candidates:
         api_name = api_names.get(dev_info["hostapi"], "?")
         native_sr = int(dev_info["default_samplerate"])
         rates_to_try = [native_sr] + [s for s in sample_rates if s != native_sr]
