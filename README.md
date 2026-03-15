@@ -1,6 +1,24 @@
 # demon_receipt_box
 Voice recorder with local offline speech-to-text transcription.
 
+## Quick install (pip, no uv)
+
+Install all Python dependencies in one go:
+
+```bash
+pip install numpy sounddevice scipy faster-whisper llama-cpp-python huggingface-hub pywin32 Pillow docx2pdf pdf2image
+```
+
+On Linux, you also need PortAudio:
+```bash
+sudo apt install -y libportaudio2 portaudio19-dev
+```
+
+`pywin32`, `docx2pdf`, and `pdf2image` are only needed for the Windows printing scripts — skip them on Linux if you only want recording + transcription + LLM:
+```bash
+pip install numpy sounddevice scipy faster-whisper llama-cpp-python huggingface-hub
+```
+
 ## Code Review
 - Records 10s of audio from microphone → saves as `recording.wav`
 - Transcribes using faster-whisper (CPU, offline) → saves to `transcription.txt`
@@ -92,6 +110,17 @@ Use a local GGUF model directly from Python (no separate Ollama service).
    ```bash
    uv sync
    ```
+   Or without `uv` (Windows):
+   ```cmd
+   pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+   pip install huggingface-hub
+   ```
+   The `--extra-index-url` pulls a prebuilt CPU wheel so you don't need a C++ compiler.
+
+   **If you have an NVIDIA GPU** and want GPU acceleration, use this index instead:
+   ```cmd
+   pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu124
+   ```
 
 2. **Run speech transcription first**
    ```bash
@@ -99,23 +128,13 @@ Use a local GGUF model directly from Python (no separate Ollama service).
    ```
 
 3. **Generate LLM output (download model from Hugging Face)**
-   ```bash
-   python llm_postprocess.py \
-     --hf-repo bartowski/Llama-3.2-3B-Instruct-GGUF \
-     --hf-filename Llama-3.2-3B-Instruct-Q4_K_M.gguf \
-     --input-text transcription.txt \
-     --prompt-file prompts/joke_prompt.txt \
-     --output-file llm_response.txt
+   ```cmd
+   python llm_postprocess.py --hf-repo bartowski/Llama-3.2-3B-Instruct-GGUF --hf-filename Llama-3.2-3B-Instruct-Q4_K_M.gguf --input-text transcription.txt --prompt-file prompts/joke_prompt.txt --output-file llm_response.txt
    ```
 
 4. **Try a different model**
-   ```bash
-   python llm_postprocess.py \
-     --hf-repo bartowski/Mistral-7B-Instruct-v0.2-GGUF \
-     --hf-filename Mistral-7B-Instruct-v0.2-Q4_K_M.gguf \
-     --input-text transcription.txt \
-     --prompt-file prompts/joke_prompt.txt \
-     --output-file llm_response_mistral.txt
+   ```cmd
+   python llm_postprocess.py --hf-repo bartowski/Mistral-7B-Instruct-v0.2-GGUF --hf-filename Mistral-7B-Instruct-v0.2-Q4_K_M.gguf --input-text transcription.txt --prompt-file prompts/joke_prompt.txt --output-file llm_response_mistral.txt
    ```
 
 5. **Use a model file you already downloaded**
