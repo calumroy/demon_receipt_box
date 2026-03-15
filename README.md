@@ -169,31 +169,50 @@ Notes:
 
 Prints a randomly selected `.docx` file from the printables folder as a raster image on a thermal receipt printer. Save your `.docx` files with the correct page width and margins for the receipt paper.
 
-1. **Install Poppler for Windows**
-   - Download the latest release from [github.com/oschwartz10612/poppler-windows/releases](https://github.com/oschwartz10612/poppler-windows/releases)
-   - Extract it and add `poppler-XX/Library/bin` to your system PATH
+### Prerequisites
 
-2. **Install Python dependencies**
+**Microsoft Word** must be installed — `docx2pdf` uses Word to convert `.docx` → PDF.
+
+### Install Poppler for Windows
+
+`pdf2image` needs Poppler's `pdftoppm.exe` to render PDFs into images.
+
+1. Download the latest ZIP from [github.com/oschwartz10612/poppler-windows/releases](https://github.com/oschwartz10612/poppler-windows/releases) (currently `Release-25.12.0-0`)
+2. Extract to a permanent location, e.g. `C:\poppler`
+3. Add the `Library\bin` folder to your system PATH:
+   - Press **Start** → search **Environment Variables** → open **Edit the system environment variables**
+   - Click **Environment Variables**
+   - Under **System variables**, select **Path** → click **Edit** → click **New**
+   - Paste the full path, e.g. `C:\poppler\poppler-25.12.0\Library\bin`
+   - Click **OK** on everything
+4. **Close and reopen** your terminal, then verify:
    ```cmd
-   pip install docx2pdf pdf2image Pillow pywin32
+   pdftoppm -h
    ```
-   Or if using `uv`:
-   ```cmd
-   uv sync
-   ```
+   If it prints usage info, Poppler is set up correctly.
 
-3. **Microsoft Word** must be installed (used by `docx2pdf` to convert `.docx` → PDF)
+### Install Python dependencies
 
-4. **Find your printer name**
+```cmd
+pip install docx2pdf pdf2image Pillow pywin32
+```
+Or if using `uv`:
+```cmd
+uv sync
+```
+
+### Setup and run
+
+1. **Find your printer name**
    ```cmd
    python print_docx.py --list
    ```
 
-5. **Add `.docx` files to `printables/`**
+2. **Add `.docx` files to `printables/`**
    - Set page width to ~62mm (2.44in) with minimal/zero margins to match the 496-dot printable area
    - The rendered document is auto-scaled to fit the printable width
 
-6. **Run**
+3. **Run**
    ```cmd
    python print_docx.py -p "YourPrinterName"
    ```
@@ -201,7 +220,7 @@ Prints a randomly selected `.docx` file from the printables folder as a raster i
 
 Notes:
 - Uses the same **80mm paper** / **5mm margin** settings as `print_receipt.py`.
-- Rendering pipeline: `.docx` → Word (via `docx2pdf`) → PDF → `pdf2image` (poppler) → ESC/POS raster.
+- Rendering pipeline: `.docx` → Word (via `docx2pdf`) → PDF → `pdf2image` (Poppler) → ESC/POS raster.
 - Multi-page documents are supported — each page is printed sequentially.
 - Use `-d other_folder` to use a different folder instead of `printables/`.
 - To change paper size or margins, edit the constants at the top of `print_docx.py`.
