@@ -33,6 +33,7 @@ PRINTABLES_DIR = "printables"
 DEFAULT_PRINTER = "XP-80C"
 TRANSCRIPTION_FILE = "transcription.txt"
 LLM_RESPONSE_FILE = "llm_response.txt"
+MAX_PRINT_CHARS = 300
 DEFAULT_PROMPT_FILE = "prompts/joke_prompt.txt"
 DEFAULT_HF_REPO = "bartowski/Llama-3.2-3B-Instruct-GGUF"
 DEFAULT_HF_FILENAME = "Llama-3.2-3B-Instruct-Q4_K_M.gguf"
@@ -294,6 +295,8 @@ def main():
             if not llm_response:
                 print("  [LLM returned empty response — skipping]\n")
                 continue
+            if len(llm_response) > MAX_PRINT_CHARS:
+                llm_response = llm_response[:MAX_PRINT_CHARS]
             print(f"  LLM says: {llm_response}")
             Path(LLM_RESPONSE_FILE).write_text(llm_response + "\n", encoding="utf-8")
 
