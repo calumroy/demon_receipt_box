@@ -22,19 +22,62 @@ OUTPUT_TEXT = "transcription.txt"
 MODEL_SIZE = "base"
 
 
+def find_input_device() -> tuple[int, int]:
+    """Find a working input device and return (device_index, sample_rate).
+
+    Falls back through sample rates if the default doesn't support 16kHz.
+    """
+    devices = sd.query_devices()
+    default_input = sd.default.device[0]
+
+    print("Available input devices:")
+    for i, d in enumerate(devices):
+        if d["max_input_channels"] > 0:
+            marker = " <-- default" if i == default_input else ""
+            print(f"  [{i}] {d['name']} "
+                  f"(inputs={d['max_input_channels']}, "
+                  f"default_sr={d['default_samplerate']:.0f}){marker}")
+
+    if default_input is None or default_input < 0:
+        raise RuntimeError(
+            "No default input device found. Check Windows Settings > "
+            "System > Sound and make sure a microphone is enabled."
+        )
+
+    dev_info = sd.query_devices(default_input, "input")
+    native_sr = int(dev_info["default_samplerate"])
+
+    for sr in [SAMPLE_RATE, native_sr, 44100, 48000]:
+        try:
+            sd.check_input_settings(device=default_input, samplerate=sr,
+                                    channels=CHANNELS, dtype="int16")
+            print(f"Using device [{default_input}] {dev_info['name']} @ {sr} Hz")
+            return default_input, sr
+        except sd.PortAudioError:
+            continue
+
+    raise RuntimeError(
+        f"Device [{default_input}] {dev_info['name']} rejected every sample rate we tried. "
+        "Check Windows Settings > Privacy > Microphone and allow desktop apps."
+    )
+
+
 def record_audio(filename: str, seconds: int, sample_rate: int, channels: int) -> None:
     """Record audio from the default microphone and save it as a WAV file."""
+    device_id, actual_sr = find_input_device()
+
     print(f"Recording for {seconds} seconds... Speak now.")
 
     audio = sd.rec(
-        int(seconds * sample_rate),
-        samplerate=sample_rate,
+        int(seconds * actual_sr),
+        samplerate=actual_sr,
         channels=channels,
         dtype="int16",
+        device=device_id,
     )
     sd.wait()
 
-    write(filename, sample_rate, audio)
+    write(filename, actual_sr, audio)
     print(f"Saved recording to: {filename}")
 
 
