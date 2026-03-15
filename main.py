@@ -22,42 +22,68 @@ OUTPUT_TEXT = "transcription.txt"
 MODEL_SIZE = "base"
 
 
-def find_input_device() -> tuple[int, int]:
-    """Find a working input device and return (device_index, sample_rate).
+def _try_record_test(device_id: int, sr: int) -> bool:
+    """Actually open a tiny stream to verify the device works (not just check_input_settings)."""
+    try:
+        sd.rec(int(0.1 * sr), samplerate=sr, channels=CHANNELS,
+               dtype="int16", device=device_id)
+        sd.wait()
+        return True
+    except sd.PortAudioError:
+        return False
 
-    Falls back through sample rates if the default doesn't support 16kHz.
-    """
+
+def find_input_device() -> tuple[int, int]:
+    """Find a working input device, preferring WASAPI over MME on Windows."""
     devices = sd.query_devices()
+    host_apis = sd.query_hostapis()
+
+    api_names = {i: api["name"] for i, api in enumerate(host_apis)}
     default_input = sd.default.device[0]
 
     print("Available input devices:")
     for i, d in enumerate(devices):
         if d["max_input_channels"] > 0:
+            api = api_names.get(d["hostapi"], "?")
             marker = " <-- default" if i == default_input else ""
             print(f"  [{i}] {d['name']} "
-                  f"(inputs={d['max_input_channels']}, "
+                  f"(api={api}, inputs={d['max_input_channels']}, "
                   f"default_sr={d['default_samplerate']:.0f}){marker}")
 
-    if default_input is None or default_input < 0:
+    # Build candidate list: WASAPI first, then DirectSound, then MME, then rest.
+    api_priority = {"Windows WASAPI": 0, "Windows DirectSound": 1, "MME": 2}
+    candidates = []
+    for i, d in enumerate(devices):
+        if d["max_input_channels"] < CHANNELS:
+            continue
+        api_name = api_names.get(d["hostapi"], "")
+        priority = api_priority.get(api_name, 99)
+        candidates.append((priority, i, d))
+
+    candidates.sort(key=lambda x: x[0])
+
+    if not candidates:
         raise RuntimeError(
-            "No default input device found. Check Windows Settings > "
-            "System > Sound and make sure a microphone is enabled."
+            "No input devices found at all. Check Windows Settings > "
+            "System > Sound and make sure a microphone is enabled, and "
+            "Settings > Privacy > Microphone allows desktop apps."
         )
 
-    dev_info = sd.query_devices(default_input, "input")
-    native_sr = int(dev_info["default_samplerate"])
+    # Try each candidate with a real test recording.
+    sample_rates = [SAMPLE_RATE, 44100, 48000]
+    for priority, dev_id, dev_info in candidates:
+        api_name = api_names.get(dev_info["hostapi"], "?")
+        native_sr = int(dev_info["default_samplerate"])
+        rates_to_try = [native_sr] + [s for s in sample_rates if s != native_sr]
 
-    for sr in [SAMPLE_RATE, native_sr, 44100, 48000]:
-        try:
-            sd.check_input_settings(device=default_input, samplerate=sr,
-                                    channels=CHANNELS, dtype="int16")
-            print(f"Using device [{default_input}] {dev_info['name']} @ {sr} Hz")
-            return default_input, sr
-        except sd.PortAudioError:
-            continue
+        for sr in rates_to_try:
+            if _try_record_test(dev_id, sr):
+                print(f"Using device [{dev_id}] {dev_info['name']} "
+                      f"(api={api_name}) @ {sr} Hz")
+                return dev_id, sr
 
     raise RuntimeError(
-        f"Device [{default_input}] {dev_info['name']} rejected every sample rate we tried. "
+        "Every input device failed a real test recording. "
         "Check Windows Settings > Privacy > Microphone and allow desktop apps."
     )
 
