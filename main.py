@@ -22,14 +22,17 @@ OUTPUT_TEXT = "transcription.txt"
 MODEL_SIZE = "base"
 
 
-def _try_record_test(device_id: int, sr: int) -> bool:
-    """Actually open a tiny stream to verify the device works (not just check_input_settings)."""
+def _try_open_stream(device_id: int, sr: int) -> bool:
+    """Open and immediately close an InputStream to verify the device actually works."""
     try:
-        sd.rec(int(0.1 * sr), samplerate=sr, channels=CHANNELS,
-               dtype="int16", device=device_id)
-        sd.wait()
+        stream = sd.InputStream(device=device_id, samplerate=sr,
+                                channels=CHANNELS, dtype="int16")
+        stream.start()
+        sd.sleep(200)
+        stream.stop()
+        stream.close()
         return True
-    except sd.PortAudioError:
+    except Exception:
         return False
 
 
@@ -77,7 +80,7 @@ def find_input_device() -> tuple[int, int]:
         rates_to_try = [native_sr] + [s for s in sample_rates if s != native_sr]
 
         for sr in rates_to_try:
-            if _try_record_test(dev_id, sr):
+            if _try_open_stream(dev_id, sr):
                 print(f"Using device [{dev_id}] {dev_info['name']} "
                       f"(api={api_name}) @ {sr} Hz")
                 return dev_id, sr
