@@ -19,6 +19,7 @@ PRINTABLES_DIR = "printables"
 HEADER_FILE = "header_always_print.txt"
 LINES_FILE = "slopyanus.txt"
 NUM_RANDOM_LINES = 5
+DEFAULT_PRINTER = "XP-80C"
 
 PAPER_TOTAL_PX = 576
 MARGIN_PX = 40
@@ -119,17 +120,28 @@ def build_receipt(folder: Path, header_text: str, all_lines: list[str]) -> bytes
 
 
 def send_to_printer(data: bytes, printer_name: str):
-    import win32print
-
-    handle = win32print.OpenPrinter(printer_name)
-    try:
-        win32print.StartDocPrinter(handle, 1, ("receipt", None, "RAW"))
-        win32print.StartPagePrinter(handle)
-        win32print.WritePrinter(handle, data)
-        win32print.EndPagePrinter(handle)
-        win32print.EndDocPrinter(handle)
-    finally:
-        win32print.ClosePrinter(handle)
+    if sys.platform == "win32":
+        import win32print
+        handle = win32print.OpenPrinter(printer_name)
+        try:
+            win32print.StartDocPrinter(handle, 1, ("receipt", None, "RAW"))
+            win32print.StartPagePrinter(handle)
+            win32print.WritePrinter(handle, data)
+            win32print.EndPagePrinter(handle)
+            win32print.EndDocPrinter(handle)
+        finally:
+            win32print.ClosePrinter(handle)
+    else:
+        import subprocess
+        proc = subprocess.run(
+            ["lp", "-d", printer_name, "-o", "raw", "-"],
+            input=data,
+            capture_output=True,
+        )
+        if proc.returncode != 0:
+            raise RuntimeError(
+                f"lp failed (exit {proc.returncode}): {proc.stderr.decode()}"
+            )
 
 
 def main():
@@ -138,7 +150,8 @@ def main():
     )
     parser.add_argument(
         "-p", "--printer",
-        help="Windows printer name (omit to list available printers)",
+        default=DEFAULT_PRINTER,
+        help=f"Printer name (default: {DEFAULT_PRINTER})",
     )
     parser.add_argument(
         "-d", "--dir",
@@ -153,21 +166,13 @@ def main():
     args = parser.parse_args()
 
     if args.list:
-        for name in list_windows_printers():
-            print(f"  {name}")
+        if sys.platform == "win32":
+            for name in list_windows_printers():
+                print(f"  {name}")
+        else:
+            import subprocess
+            subprocess.run(["lpstat", "-p", "-d"])
         return
-
-    if not args.printer:
-        printers = list_windows_printers()
-        if not printers:
-            print("No printers found. Plug in your thermal printer.")
-            sys.exit(1)
-        print("Available printers:")
-        for i, name in enumerate(printers):
-            print(f"  [{i}] {name}")
-        print()
-        print("Run again with: python print_receipt.py -p \"YourPrinterName\"")
-        sys.exit(0)
 
     folder = Path(args.dir)
     if not folder.is_dir():
