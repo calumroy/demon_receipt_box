@@ -1,0 +1,6 @@
+Hello from the demon receipt box!
+
+Edit this file with whatever you want
+to print on your thermal printer.
+
+Then run: python print_receipt.py

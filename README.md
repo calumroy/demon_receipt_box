@@ -127,3 +127,39 @@ Notes:
 - The prompt file supports a `{transcription}` placeholder.
 - The included test prompt is `prompts/joke_prompt.txt` (turns speech text into a joke).
 - Downloaded model files are stored in `models/` by default.
+
+## Thermal receipt printer (ESC/POS via USB, Windows)
+
+Random receipt dispenser — drop `.txt` and `.png` files into a folder, press Enter, and a random one prints.
+
+1. **Plug in your USB thermal printer** (Windows usually auto-installs the driver)
+
+2. **Install dependencies**
+   ```cmd
+   pip install pywin32 Pillow
+   ```
+   Or if using `uv`:
+   ```cmd
+   uv sync
+   ```
+
+3. **Find your printer name**
+   ```cmd
+   python print_receipt.py --list
+   ```
+
+4. **Add files to `printables/`**
+   - `.txt` files — printed as text
+   - `.png` files — converted to monochrome and printed as images
+
+5. **Run**
+   ```cmd
+   python print_receipt.py -p "YourPrinterName"
+   ```
+   Then press Enter each time you want a random print. Ctrl+C to quit.
+
+Notes:
+- `PAPER_WIDTH_PX` is set to 384 (58mm paper). Change to 576 for 80mm paper.
+- `PAPER_WIDTH_CHARS` is 32 for 58mm, 48 for 80mm.
+- PNGs are auto-scaled to fit the paper width and dithered to 1-bit black/white.
+- Use `-d other_folder` to use a different folder instead of `printables/`.

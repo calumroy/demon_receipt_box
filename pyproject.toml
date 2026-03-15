@@ -11,4 +11,6 @@ dependencies = [
     "faster-whisper",
     "llama-cpp-python",
     "huggingface-hub",
+    "pywin32; sys_platform == 'win32'",
+    "Pillow",
 ]
