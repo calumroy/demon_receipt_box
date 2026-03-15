@@ -12,8 +12,10 @@ from pathlib import Path
 
 
 PRINTABLES_DIR = "printables"
-PAPER_WIDTH_PX = 384  # 58mm paper = 384 dots; 80mm paper = 576 dots
-PAPER_WIDTH_CHARS = 32  # 58mm paper; 48 for 80mm
+PAPER_TOTAL_PX = 576       # 80mm paper @ 203 DPI
+MARGIN_PX = 40             # 5mm margin @ 8 dots/mm
+PRINT_WIDTH_PX = PAPER_TOTAL_PX - 2 * MARGIN_PX  # 496 dots usable
+PAPER_WIDTH_CHARS = 42     # ~496 / 12 dots per char (default font)
 
 
 def list_windows_printers():
@@ -34,17 +36,28 @@ def get_printable_files(folder: Path) -> list[Path]:
     return sorted(f for f in folder.iterdir() if f.suffix.lower() in exts)
 
 
+def margin_commands() -> bytes:
+    """ESC/POS commands to set left margin and printable area width."""
+    GS = b"\x1d"
+    cmds = bytearray()
+    # GS L — set left margin in dots
+    cmds += GS + b"L" + struct.pack("<H", MARGIN_PX)
+    # GS W — set printing area width in dots
+    cmds += GS + b"W" + struct.pack("<H", PRINT_WIDTH_PX)
+    return bytes(cmds)
+
+
 def image_to_escpos_raster(image_path: Path) -> bytes:
     """Convert a PNG to ESC/POS raster bit-image bytes."""
     from PIL import Image
 
     img = Image.open(image_path)
 
-    # Scale to fit paper width, maintaining aspect ratio
-    if img.width != PAPER_WIDTH_PX:
-        ratio = PAPER_WIDTH_PX / img.width
+    # Scale to fit printable width (minus margins), maintaining aspect ratio
+    if img.width != PRINT_WIDTH_PX:
+        ratio = PRINT_WIDTH_PX / img.width
         new_h = int(img.height * ratio)
-        img = img.resize((PAPER_WIDTH_PX, new_h), Image.LANCZOS)
+        img = img.resize((PRINT_WIDTH_PX, new_h), Image.LANCZOS)
 
     img = img.convert("1")  # 1-bit monochrome, dithered
 
@@ -73,6 +86,7 @@ def build_text_payload(text: str) -> bytes:
     ESC = b"\x1b"
     payload = bytearray()
     payload += ESC + b"@"          # initialize
+    payload += margin_commands()
     payload += ESC + b"t\x00"      # code table PC437
     payload += text.encode("cp437", errors="replace")
     return bytes(payload)
@@ -82,6 +96,7 @@ def build_image_payload(image_path: Path) -> bytes:
     ESC = b"\x1b"
     payload = bytearray()
     payload += ESC + b"@"          # initialize
+    payload += margin_commands()
     payload += image_to_escpos_raster(image_path)
     return bytes(payload)
 

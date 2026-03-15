@@ -1,7 +1,7 @@
-================================
-   DEMON RECEIPT BOX says:
+==========================================
+       DEMON RECEIPT BOX says:
 
-   You have been chosen.
-   There is no escape.
-   Have a nice day.
-================================
+       You have been chosen.
+       There is no escape.
+       Have a nice day.
+==========================================

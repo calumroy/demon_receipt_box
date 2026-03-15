@@ -159,7 +159,8 @@ Random receipt dispenser — drop `.txt` and `.png` files into a folder, press E
    Then press Enter each time you want a random print. Ctrl+C to quit.
 
 Notes:
-- `PAPER_WIDTH_PX` is set to 384 (58mm paper). Change to 576 for 80mm paper.
-- `PAPER_WIDTH_CHARS` is 32 for 58mm, 48 for 80mm.
-- PNGs are auto-scaled to fit the paper width and dithered to 1-bit black/white.
+- Configured for **80mm paper** with **5mm margins** on each side (496 dots printable).
+- PNGs are auto-scaled to fit the printable width and dithered to 1-bit black/white.
+- ~42 characters per line with the default font.
 - Use `-d other_folder` to use a different folder instead of `printables/`.
+- To change paper size or margins, edit the constants at the top of `print_receipt.py`.

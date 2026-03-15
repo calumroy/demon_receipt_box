@@ -1,8 +1,8 @@
-================================
-      YOUR FORTUNE:
+==========================================
+            YOUR FORTUNE:
 
-  A great adventure awaits
-  you... at the supermarket.
+    A great adventure awaits
+    you... at the supermarket.
 
-  Lucky numbers: 4 8 15 16 23 42
-================================
+    Lucky numbers: 4 8 15 16 23 42
+==========================================
