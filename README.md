@@ -164,3 +164,44 @@ Notes:
 - ~42 characters per line with the default font.
 - Use `-d other_folder` to use a different folder instead of `printables/`.
 - To change paper size or margins, edit the constants at the top of `print_receipt.py`.
+
+## .docx receipt printer (ESC/POS via USB, Windows)
+
+Prints a randomly selected `.docx` file from the printables folder as a raster image on a thermal receipt printer. Save your `.docx` files with the correct page width and margins for the receipt paper.
+
+1. **Install Poppler for Windows**
+   - Download the latest release from [github.com/oschwartz10612/poppler-windows/releases](https://github.com/oschwartz10612/poppler-windows/releases)
+   - Extract it and add `poppler-XX/Library/bin` to your system PATH
+
+2. **Install Python dependencies**
+   ```cmd
+   pip install docx2pdf pdf2image Pillow pywin32
+   ```
+   Or if using `uv`:
+   ```cmd
+   uv sync
+   ```
+
+3. **Microsoft Word** must be installed (used by `docx2pdf` to convert `.docx` → PDF)
+
+4. **Find your printer name**
+   ```cmd
+   python print_docx.py --list
+   ```
+
+5. **Add `.docx` files to `printables/`**
+   - Set page width to ~62mm (2.44in) with minimal/zero margins to match the 496-dot printable area
+   - The rendered document is auto-scaled to fit the printable width
+
+6. **Run**
+   ```cmd
+   python print_docx.py -p "YourPrinterName"
+   ```
+   Then press Enter each time you want a random print. Ctrl+C to quit.
+
+Notes:
+- Uses the same **80mm paper** / **5mm margin** settings as `print_receipt.py`.
+- Rendering pipeline: `.docx` → Word (via `docx2pdf`) → PDF → `pdf2image` (poppler) → ESC/POS raster.
+- Multi-page documents are supported — each page is printed sequentially.
+- Use `-d other_folder` to use a different folder instead of `printables/`.
+- To change paper size or margins, edit the constants at the top of `print_docx.py`.

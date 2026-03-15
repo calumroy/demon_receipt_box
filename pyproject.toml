@@ -13,4 +13,6 @@ dependencies = [
     "huggingface-hub",
     "pywin32; sys_platform == 'win32'",
     "Pillow",
+    "docx2pdf; sys_platform == 'win32'",
+    "pdf2image",
 ]
