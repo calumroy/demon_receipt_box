@@ -1,7 +1,68 @@
 # demon_receipt_box
 Voice recorder with local offline speech-to-text transcription.
 
-## Quick install (pip, no uv)
+## Quick Start -- Random Image Printer (Windows)
+
+Print random images from a folder on a thermal receipt printer. Text from `.txt` files in the same folder is automatically overlaid on top of each image.
+
+### 1. Download the code
+
+Go to [github.com/calumroy/demon_receipt_box](https://github.com/calumroy/demon_receipt_box), click the green **Code** button, then click **Download ZIP**. Extract the ZIP to a folder on your computer (e.g. `C:\demon_receipt_box`).
+
+### 2. Install Python
+
+1. Download the latest Python 3 installer from [python.org/downloads](https://www.python.org/downloads/)
+2. Run the installer
+3. **Important:** tick the checkbox that says **"Add Python to PATH"** at the bottom of the first screen before clicking Install
+
+### 3. Open a Command Prompt
+
+Press **Win + R**, type `cmd`, and press **Enter**. Then navigate to the folder you extracted:
+
+```cmd
+cd C:\demon_receipt_box
+```
+
+(Replace `C:\demon_receipt_box` with whatever path you extracted to.)
+
+### 4. Install dependencies
+
+```cmd
+pip install pywin32 Pillow
+```
+
+That's it -- these are the only two packages this script needs.
+
+### 5. Add files to the `printables` folder
+
+- Drop `.png` images into the `printables` folder
+- Optionally drop `.txt` files into the same folder -- a random `.txt` will be overlaid on each image
+
+If there are no `.txt` files, images print without any text overlay.
+
+### 6. Plug in your printer and run
+
+Plug in your USB thermal receipt printer (Windows usually auto-installs the driver). The script defaults to the `XP-80C` printer, so just run:
+
+```cmd
+python print_random_image_gdi.py
+```
+
+Press **Enter** each time you want to print a random image. Press **Ctrl+C** to quit.
+
+### Options
+
+| Flag | Description |
+|------|-------------|
+| `-p "PrinterName"` | Printer to use (default: `XP-80C`) |
+| `-d folder` | Use a different folder instead of `printables` |
+| `-f path\to\font.ttf` | Use a custom `.ttf` font for the text overlay (default: `C:\Windows\Fonts\arial.ttf`). Other fonts live in `C:\Windows\Fonts\` -- try `arialbd.ttf` (Arial Bold), `comic.ttf` (Comic Sans), `impact.ttf`, `times.ttf`, etc. |
+| `--no-text` | Print images without any text overlay |
+| `--list` | List available printers and exit |
+
+---
+
+## Quick install (pip, no uv) for the other Python scritp e.g LLM and transcription.
 
 Install all Python dependencies in one go:
 
