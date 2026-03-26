@@ -1,9 +1,11 @@
 # demon_receipt_box
 Voice recorder with local offline speech-to-text transcription.
 
-## Quick Start -- Random Image Printer (Windows)
+## Quick Start -- Random Receipt Printer (Windows)
 
-Print random images from a folder on a thermal receipt printer. Text from `.txt` files in the same folder is automatically overlaid on top of each image.
+Print receipts on a thermal printer: a `.docx` header followed by a random PNG with random text overlaid on it -- all printed as one continuous strip with no paper cut in between.
+
+**Requires Microsoft Word** (used behind the scenes to print the header).
 
 ### 1. Download the code
 
@@ -33,12 +35,15 @@ pip install pywin32 Pillow
 
 That's it -- these are the only two packages this script needs.
 
-### 5. Add files to the `printables` folder
+### 5. Set up the `printables` folder
 
-- Drop `.png` images into the `printables` folder
-- Optionally drop `.txt` files into the same folder -- a random `.txt` will be overlaid on each image
+The `printables` folder should contain:
 
-If there are no `.txt` files, images print without any text overlay.
+- **`receipt-header.docx`** -- printed at the top of every receipt (already included)
+- **`.png` images** -- a random one is picked each time you print
+- **`random_text_lines.txt`** -- one random line from this file is overlaid on the image each time (already included)
+
+If `receipt-header.docx` is missing the header is skipped. If `random_text_lines.txt` is missing or empty the image prints without text.
 
 ### 6. Plug in your printer and run
 
@@ -48,7 +53,7 @@ Plug in your USB thermal receipt printer (Windows usually auto-installs the driv
 python print_random_image_gdi.py
 ```
 
-Press **Enter** each time you want to print a random image. Press **Ctrl+C** to quit.
+Press **Enter** each time you want to print a receipt. Press **Ctrl+C** to quit.
 
 ### Options
 
@@ -56,8 +61,12 @@ Press **Enter** each time you want to print a random image. Press **Ctrl+C** to 
 |------|-------------|
 | `-p "PrinterName"` | Printer to use (default: `XP-80C`) |
 | `-d folder` | Use a different folder instead of `printables` |
-| `-f path\to\font.ttf` | Use a custom `.ttf` font for the text overlay (default: `C:\Windows\Fonts\arial.ttf`). Other fonts live in `C:\Windows\Fonts\` -- try `arialbd.ttf` (Arial Bold), `comic.ttf` (Comic Sans), `impact.ttf`, `times.ttf`, etc. |
+| `-n N` | Number of random lines to overlay on the image (default: `1`) |
+| `-f path\to\font.ttf` | Custom `.ttf` font for the text overlay (default: `C:\Windows\Fonts\arial.ttf`). Other fonts live in `C:\Windows\Fonts\` -- try `arialbd.ttf` (Arial Bold), `comic.ttf` (Comic Sans), `impact.ttf`, `times.ttf`, etc. |
+| `--header path` | Use a different `.docx` as the header (default: `printables/receipt-header.docx`) |
+| `--no-header` | Skip the `.docx` header and print only the image via GDI |
 | `--no-text` | Print images without any text overlay |
+| `--save-docx path` | Save each composed receipt (header + image) as a `.docx` file before printing |
 | `--list` | List available printers and exit |
 
 ---
