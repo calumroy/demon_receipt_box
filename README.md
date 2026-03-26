@@ -3,9 +3,7 @@ Voice recorder with local offline speech-to-text transcription.
 
 ## Quick Start -- Random Receipt Printer (Windows)
 
-Print receipts on a thermal printer: a `.docx` header followed by a random PNG with random text overlaid on it -- all printed as one continuous strip with no paper cut in between.
-
-**Requires Microsoft Word** (used behind the scenes to print the header).
+Print receipts on a thermal printer: a header image followed by a random PNG with random text overlaid on it -- all printed as one continuous strip with no paper cut in between.
 
 ### 1. Download the code
 
@@ -39,11 +37,11 @@ That's it -- these are the only two packages this script needs.
 
 The `printables` folder should contain:
 
-- **`receipt-header.docx`** -- printed at the top of every receipt (already included)
-- **`.png` images** -- a random one is picked each time you print
+- **`receipt-header.png`** -- printed at the top of every receipt as a header (already included). A `.docx` header is also supported via `--header` but requires Microsoft Word.
+- **`.png` images** -- a random one is picked each time you print (the header PNG is excluded from the random pool)
 - **`random_text_lines.txt`** -- one random line from this file is overlaid on the image each time (already included)
 
-If `receipt-header.docx` is missing the header is skipped. If `random_text_lines.txt` is missing or empty the image prints without text.
+If the header file is missing the header is skipped. If `random_text_lines.txt` is missing or empty the image prints without text.
 
 ### 6. Plug in your printer and run
 
@@ -63,8 +61,8 @@ Press **Enter** each time you want to print a receipt. Press **Ctrl+C** to quit.
 | `-d folder` | Use a different folder instead of `printables` |
 | `-n N` | Number of random lines to overlay on the image (default: `1`) |
 | `-f path\to\font.ttf` | Custom `.ttf` font for the text overlay (default: `C:\Windows\Fonts\arial.ttf`). Other fonts live in `C:\Windows\Fonts\` -- try `arialbd.ttf` (Arial Bold), `comic.ttf` (Comic Sans), `impact.ttf`, `times.ttf`, etc. |
-| `--header path` | Use a different `.docx` as the header (default: `printables/receipt-header.docx`) |
-| `--no-header` | Skip the `.docx` header and print only the image via GDI |
+| `--header path` | Use a different header file -- `.png` (pure Pillow) or `.docx` (needs Word). Default: `receipt-header.png`, falls back to `receipt-header.docx` |
+| `--no-header` | Skip the header and print only the image |
 | `--no-text` | Print images without any text overlay |
 | `--save-docx path` | Save each composed receipt (header + image) as a `.docx` file before printing |
 | `--list` | List available printers and exit |

@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """
-Print a receipt with a .docx header followed by a random PNG (with optional
-random text overlay) using Word COM automation and the Windows GDI driver.
-Everything prints as one continuous document -- no paper cut between header
-and image.
+Print a receipt with a header image followed by a random PNG (with optional
+random text overlay) using the Windows GDI driver.
+Everything prints as one continuous image -- no paper cut between header and body.
+
+If a .png header is used (default), only Pillow + pywin32 are needed.
+If a .docx header is used, Microsoft Word is also required (Word COM automation).
 
 Press Enter to print. Ctrl+C to quit.
 """
@@ -21,6 +23,7 @@ PRINTABLES_DIR = "printables"
 DEFAULT_PRINTER = "POS-80"
 FONT_PATH = r"C:\Windows\Fonts\arial.ttf"
 FONT_SIZE_RATIO = 0.06
+HEADER_PNG = "receipt-header.png"
 HEADER_DOCX = "receipt-header.docx"
 RANDOM_LINES_FILE = "random_text_lines.txt"
 
@@ -58,6 +61,21 @@ def overlay_text_on_image(img, text, font_path=FONT_PATH):
     draw.text((x, y), wrapped, font=font, fill="black")
 
     return overlay.convert("RGB")
+
+
+def stack_images(top, bottom):
+    """Stack two PIL Images vertically, scaling bottom to match top's width."""
+    from PIL import Image
+
+    if bottom.width != top.width:
+        ratio = top.width / bottom.width
+        new_h = int(bottom.height * ratio)
+        bottom = bottom.resize((top.width, new_h), Image.LANCZOS)
+
+    composite = Image.new("RGB", (top.width, top.height + bottom.height), "white")
+    composite.paste(top, (0, 0))
+    composite.paste(bottom, (0, top.height))
+    return composite
 
 
 def list_printers():
@@ -185,18 +203,20 @@ def main():
     parser.add_argument(
         "--header",
         default=None,
-        help=f"Path to header .docx (default: <dir>/{HEADER_DOCX})",
+        help=f"Path to header .png or .docx (default: <dir>/{HEADER_PNG}, "
+             f"falls back to <dir>/{HEADER_DOCX})",
     )
     parser.add_argument(
         "--no-header",
         action="store_true",
-        help="Skip the .docx header and just print the image via GDI",
+        help="Skip the header and just print the image via GDI",
     )
     parser.add_argument(
         "--save-docx",
         default=None,
         metavar="PATH",
-        help="Save each composed receipt as a .docx file to PATH before printing",
+        help="Save each composed receipt as a .docx file to PATH before printing "
+             "(only works with .docx headers)",
     )
     parser.add_argument(
         "--list",
@@ -217,17 +237,37 @@ def main():
         print(f"Folder not found: {folder}")
         sys.exit(1)
 
-    pngs = sorted(f for f in folder.iterdir() if f.suffix.lower() == ".png")
-    if not pngs:
+    all_pngs = sorted(f for f in folder.iterdir() if f.suffix.lower() == ".png")
+    if not all_pngs:
         print(f"No PNGs found in {folder}")
         sys.exit(1)
 
-    # Header docx
+    # Header: prefer .png (pure Pillow), fall back to .docx (needs Word)
     use_header = not args.no_header
-    header_path = Path(args.header) if args.header else folder / HEADER_DOCX
-    if use_header and not header_path.is_file():
-        print(f"Header not found: {header_path} — printing without header")
-        use_header = False
+    header_path = None
+    if use_header:
+        if args.header:
+            header_path = Path(args.header)
+        elif (folder / HEADER_PNG).is_file():
+            header_path = folder / HEADER_PNG
+        elif (folder / HEADER_DOCX).is_file():
+            header_path = folder / HEADER_DOCX
+
+        if header_path is None or not header_path.is_file():
+            if header_path:
+                print(f"Header not found: {header_path} — printing without header")
+            use_header = False
+
+    header_is_png = use_header and header_path.suffix.lower() == ".png"
+
+    # Exclude the header PNG from the random body image pool
+    if header_is_png:
+        pngs = [f for f in all_pngs if f.resolve() != header_path.resolve()]
+    else:
+        pngs = all_pngs
+    if not pngs:
+        print(f"No body PNGs found in {folder} (only the header PNG exists)")
+        sys.exit(1)
 
     # Random text lines
     lines = []
@@ -238,7 +278,8 @@ def main():
 
     print(f"Images:  {len(pngs)} PNGs in {folder}")
     if use_header:
-        print(f"Header:  {header_path.name}")
+        mode = "Pillow" if header_is_png else "Word COM"
+        print(f"Header:  {header_path.name} ({mode})")
     if not args.no_text:
         print(f"Lines:   {len(lines)} in {RANDOM_LINES_FILE} (picking {args.lines} per print)")
     print(f"Printer: {args.printer}")
@@ -263,7 +304,11 @@ def main():
                 label = f"{chosen_png.name} + {n} line(s)"
 
             print(f"  Printing {label}...")
-            if use_header:
+            if use_header and header_is_png:
+                header_img = Image.open(header_path)
+                composite = stack_images(header_img, img)
+                print_image_gdi(composite, args.printer, doc_name=str(chosen_png))
+            elif use_header:
                 print_receipt(header_path, img, args.printer, save_path=args.save_docx)
                 if args.save_docx:
                     print(f"  Saved to {args.save_docx}")
