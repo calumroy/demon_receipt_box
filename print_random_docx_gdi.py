@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 
 PRINTABLES_DIR = "printables"
-DEFAULT_PRINTER = "XP-80C"
+DEFAULT_PRINTER = "POS-80"
 
 
 def list_printers():

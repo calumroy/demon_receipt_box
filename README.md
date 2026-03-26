@@ -47,7 +47,7 @@ If `receipt-header.docx` is missing the header is skipped. If `random_text_lines
 
 ### 6. Plug in your printer and run
 
-Plug in your USB thermal receipt printer (Windows usually auto-installs the driver). The script defaults to the `XP-80C` printer, so just run:
+Plug in your USB thermal receipt printer (Windows usually auto-installs the driver). The script defaults to the `POS-80` printer, so just run:
 
 ```cmd
 python print_random_image_gdi.py
@@ -59,7 +59,7 @@ Press **Enter** each time you want to print a receipt. Press **Ctrl+C** to quit.
 
 | Flag | Description |
 |------|-------------|
-| `-p "PrinterName"` | Printer to use (default: `XP-80C`) |
+| `-p "PrinterName"` | Printer to use (default: `POS-80`) |
 | `-d folder` | Use a different folder instead of `printables` |
 | `-n N` | Number of random lines to overlay on the image (default: `1`) |
 | `-f path\to\font.ttf` | Custom `.ttf` font for the text overlay (default: `C:\Windows\Fonts\arial.ttf`). Other fonts live in `C:\Windows\Fonts\` -- try `arialbd.ttf` (Arial Bold), `comic.ttf` (Comic Sans), `impact.ttf`, `times.ttf`, etc. |

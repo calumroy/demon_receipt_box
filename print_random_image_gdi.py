@@ -18,7 +18,7 @@ import time
 from pathlib import Path
 
 PRINTABLES_DIR = "printables"
-DEFAULT_PRINTER = "XP-80C"
+DEFAULT_PRINTER = "POS-80"
 FONT_PATH = r"C:\Windows\Fonts\arial.ttf"
 FONT_SIZE_RATIO = 0.06
 HEADER_DOCX = "receipt-header.docx"
@@ -81,7 +81,7 @@ def print_receipt(header_docx, composited_img, printer_name, save_path=None):
         word = win32com.client.Dispatch("Word.Application")
         word.Visible = False
         try:
-            doc = word.Documents.Open(str(header_docx.resolve()), ReadOnly=True)
+            doc = word.Documents.Open(str(header_docx.resolve()))
 
             rng = doc.Content
             rng.Collapse(0)  # wdCollapseEnd

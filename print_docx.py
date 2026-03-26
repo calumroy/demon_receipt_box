@@ -20,7 +20,7 @@ from pathlib import Path
 
 
 PRINTABLES_DIR = "printables"
-DEFAULT_PRINTER = "XP-80C"
+DEFAULT_PRINTER = "POS-80"
 
 PAPER_TOTAL_PX = 576
 MARGIN_PX = 40

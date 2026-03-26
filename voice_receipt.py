@@ -28,7 +28,7 @@ PAPER_TOTAL_PX = 576
 MARGIN_PX = 40
 PRINT_WIDTH_PX = PAPER_TOTAL_PX - 2 * MARGIN_PX
 
-DEFAULT_PRINTER = "XP-80C"
+DEFAULT_PRINTER = "POS-80"
 
 
 # ── audio helpers ───────────────────────────────────────────────

@@ -12,7 +12,7 @@ from pathlib import Path
 
 
 PRINTABLES_DIR = "printables"
-DEFAULT_PRINTER = "XP-80C"
+DEFAULT_PRINTER = "POS-80"
 
 PRINT_WIDTH_PX = 576
 

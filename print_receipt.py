@@ -19,7 +19,7 @@ PRINTABLES_DIR = "printables"
 HEADER_FILE = "header_always_print.txt"
 LINES_FILE = "slopyanus.txt"
 NUM_RANDOM_LINES = 5
-DEFAULT_PRINTER = "XP-80C"
+DEFAULT_PRINTER = "POS-80"
 
 PAPER_TOTAL_PX = 576
 MARGIN_PX = 40
