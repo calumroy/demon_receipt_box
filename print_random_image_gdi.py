@@ -81,7 +81,8 @@ def print_receipt(header_docx, composited_img, printer_name, save_path=None):
         word = win32com.client.Dispatch("Word.Application")
         word.Visible = False
         try:
-            doc = word.Documents.Open(str(header_docx.resolve()))
+            word.Documents.Open(str(header_docx.resolve()))
+            doc = word.ActiveDocument
 
             rng = doc.Content
             rng.Collapse(0)  # wdCollapseEnd
