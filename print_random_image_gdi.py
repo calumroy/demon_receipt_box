@@ -29,15 +29,22 @@ HEADER_DOCX = "receipt-header.docx"
 RANDOM_LINES_FILE = "random_text_lines.txt"
 
 
-def _wrap_preserving_newlines(text, width):
-    """Wrap text so each original line is wrapped independently."""
-    return "\n".join(
+def _wrap_preserving_newlines(text, width, line_spacing=1):
+    """Wrap text so each original line is wrapped independently.
+
+    line_spacing controls how many blank lines appear between each original
+    line (1 = one blank line between rows, 0 = no extra spacing).
+    """
+    spacer = "\n" * (1 + line_spacing)
+    wrapped_lines = [
         textwrap.fill(line, width=width) if line.strip() else ""
         for line in text.split("\n")
-    )
+    ]
+    return spacer.join(wrapped_lines)
 
 
-def overlay_text_on_image(img, text, font_path=FONT_PATH, font_size_px=None):
+def overlay_text_on_image(img, text, font_path=FONT_PATH, font_size_px=None,
+                          line_spacing=1):
     """Draw text over a PIL Image with an outline for visibility on any background.
 
     The font size is never reduced.  If the rendered text is taller than the
@@ -55,7 +62,8 @@ def overlay_text_on_image(img, text, font_path=FONT_PATH, font_size_px=None):
         font = ImageFont.load_default()
 
     max_chars = max(1, int(img.width / (font_size * 0.55)))
-    wrapped = _wrap_preserving_newlines(text.strip(), width=max_chars)
+    wrapped = _wrap_preserving_newlines(text.strip(), width=max_chars,
+                                        line_spacing=line_spacing)
 
     tmp_draw = ImageDraw.Draw(img)
     bbox = tmp_draw.textbbox((0, 0), wrapped, font=font)
@@ -233,6 +241,14 @@ def main():
              f"size is consistent (default: {DEFAULT_FONT_SIZE})",
     )
     parser.add_argument(
+        "--line-spacing",
+        type=int, default=1,
+        metavar="N",
+        help="Number of blank lines between each row of text (default: 1). "
+             "Use 0 for no extra spacing, higher values to show more of the "
+             "image between lines",
+    )
+    parser.add_argument(
         "--header",
         default=None,
         help=f"Path to header .png or .docx (default: <dir>/{HEADER_PNG}, "
@@ -349,7 +365,8 @@ def main():
                 picked = random.sample(lines, n)
                 text = "\n".join(picked)
                 img = overlay_text_on_image(img, text, font_path=args.font,
-                                           font_size_px=args.font_size)
+                                           font_size_px=args.font_size,
+                                           line_spacing=args.line_spacing)
                 label = f"{chosen_png.name} + {n} line(s)"
 
             print(f"  Printing {label}...")

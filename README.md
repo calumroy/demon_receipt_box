@@ -62,6 +62,7 @@ Press **Enter** each time you want to print a receipt. Press **Ctrl+C** to quit.
 | `-n N` | Number of random lines to overlay on the image (default: `1`) |
 | `-f path\to\font.ttf` | Custom `.ttf` font for the text overlay (default: `C:\Windows\Fonts\arial.ttf`). Other fonts live in `C:\Windows\Fonts\` -- try `arialbd.ttf` (Arial Bold), `comic.ttf` (Comic Sans), `impact.ttf`, `times.ttf`, etc. |
 | `--font-size PX` | Font size in pixels at the 576 px reference width (default: `35`). Scales proportionally to actual image width so the printed size is always consistent regardless of source image resolution. If the text is taller than the image the canvas extends downward to fit |
+| `--line-spacing N` | Number of blank lines between each row of overlaid text (default: `1`). Use `0` for no extra spacing or higher values to let more of the image show through between lines |
 | `--header path` | Use a different header file -- `.png` (pure Pillow) or `.docx` (needs Word). Default: `receipt-header.png`, falls back to `receipt-header.docx` |
 | `--no-header` | Skip the header and print only the image |
 | `--no-text` | Print images without any text overlay |
@@ -87,6 +88,18 @@ Disable the cooldown entirely:
 
 ```cmd
 python print_random_image_gdi.py --cooldown 0
+```
+
+Spread 3 lines of text apart with 4 blank rows between each, showing more of the image:
+
+```cmd
+python print_random_image_gdi.py -n 3 --line-spacing 4
+```
+
+Pack text tightly with no extra spacing:
+
+```cmd
+python print_random_image_gdi.py -n 5 --line-spacing 0
 ```
 
 ---
