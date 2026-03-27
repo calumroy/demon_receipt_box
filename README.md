@@ -61,11 +61,33 @@ Press **Enter** each time you want to print a receipt. Press **Ctrl+C** to quit.
 | `-d folder` | Use a different folder instead of `printables` |
 | `-n N` | Number of random lines to overlay on the image (default: `1`) |
 | `-f path\to\font.ttf` | Custom `.ttf` font for the text overlay (default: `C:\Windows\Fonts\arial.ttf`). Other fonts live in `C:\Windows\Fonts\` -- try `arialbd.ttf` (Arial Bold), `comic.ttf` (Comic Sans), `impact.ttf`, `times.ttf`, etc. |
+| `--font-size PX` | Font size in pixels at the 576 px reference width (default: `35`). Scales proportionally to actual image width so the printed size is always consistent regardless of source image resolution. If the text is taller than the image the canvas extends downward to fit |
 | `--header path` | Use a different header file -- `.png` (pure Pillow) or `.docx` (needs Word). Default: `receipt-header.png`, falls back to `receipt-header.docx` |
 | `--no-header` | Skip the header and print only the image |
 | `--no-text` | Print images without any text overlay |
+| `--cooldown SEC` | Seconds to ignore repeat Enter presses after a print (default: `5`). Prevents accidental multi-prints from key mashing |
 | `--save-docx path` | Save each composed receipt (header + image) as a `.docx` file before printing |
 | `--list` | List available printers and exit |
+
+### Examples
+
+Larger text with 3 random lines and Comic Sans:
+
+```cmd
+python print_random_image_gdi.py --font-size 50 -n 3 -f "C:\Windows\Fonts\comic.ttf"
+```
+
+Allow rapid reprints (1-second cooldown instead of the default 5):
+
+```cmd
+python print_random_image_gdi.py --cooldown 1
+```
+
+Disable the cooldown entirely:
+
+```cmd
+python print_random_image_gdi.py --cooldown 0
+```
 
 ---
 

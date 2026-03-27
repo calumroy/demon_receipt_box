@@ -22,32 +22,56 @@ from pathlib import Path
 PRINTABLES_DIR = "printables"
 DEFAULT_PRINTER = "POS-80"
 FONT_PATH = r"C:\Windows\Fonts\arial.ttf"
-FONT_SIZE_RATIO = 0.06
+REFERENCE_WIDTH = 576  # 80 mm receipt paper @ 203 DPI
+DEFAULT_FONT_SIZE = 35  # pixels at REFERENCE_WIDTH (~6 % of width)
 HEADER_PNG = "receipt-header.png"
 HEADER_DOCX = "receipt-header.docx"
 RANDOM_LINES_FILE = "random_text_lines.txt"
 
 
-def overlay_text_on_image(img, text, font_path=FONT_PATH):
-    """Draw text over a PIL Image with an outline for visibility on any background."""
-    from PIL import ImageDraw, ImageFont
+def _wrap_preserving_newlines(text, width):
+    """Wrap text so each original line is wrapped independently."""
+    return "\n".join(
+        textwrap.fill(line, width=width) if line.strip() else ""
+        for line in text.split("\n")
+    )
+
+
+def overlay_text_on_image(img, text, font_path=FONT_PATH, font_size_px=None):
+    """Draw text over a PIL Image with an outline for visibility on any background.
+
+    The font size is never reduced.  If the rendered text is taller than the
+    image the canvas is extended downward (white) so everything is visible.
+    """
+    from PIL import Image, ImageDraw, ImageFont
 
     img = img.copy().convert("RGBA")
-    overlay = img.copy()
-    draw = ImageDraw.Draw(overlay)
 
-    font_size = max(16, int(img.width * FONT_SIZE_RATIO))
+    base_size = font_size_px or DEFAULT_FONT_SIZE
+    font_size = max(8, int(base_size * img.width / REFERENCE_WIDTH))
     try:
         font = ImageFont.truetype(font_path, font_size)
     except (OSError, IOError):
         font = ImageFont.load_default()
 
     max_chars = max(1, int(img.width / (font_size * 0.55)))
-    wrapped = textwrap.fill(text.strip(), width=max_chars)
+    wrapped = _wrap_preserving_newlines(text.strip(), width=max_chars)
 
-    bbox = draw.textbbox((0, 0), wrapped, font=font)
+    tmp_draw = ImageDraw.Draw(img)
+    bbox = tmp_draw.textbbox((0, 0), wrapped, font=font)
     text_w = bbox[2] - bbox[0]
     text_h = bbox[3] - bbox[1]
+
+    padding = int(font_size * 0.5)
+    needed_h = text_h + padding * 2
+    if needed_h > img.height:
+        extended = Image.new("RGBA", (img.width, needed_h), "white")
+        extended.paste(img, (0, 0))
+        img = extended
+
+    overlay = img.copy()
+    draw = ImageDraw.Draw(overlay)
+
     x = (img.width - text_w) // 2
     y = (img.height - text_h) // 2
 
@@ -201,6 +225,14 @@ def main():
         help=f"Path to a .ttf font file (default: {FONT_PATH})",
     )
     parser.add_argument(
+        "--font-size",
+        type=int, default=None,
+        metavar="PX",
+        help=f"Font size in pixels at {REFERENCE_WIDTH}px reference width; "
+             f"scales proportionally to actual image width so the printed "
+             f"size is consistent (default: {DEFAULT_FONT_SIZE})",
+    )
+    parser.add_argument(
         "--header",
         default=None,
         help=f"Path to header .png or .docx (default: <dir>/{HEADER_PNG}, "
@@ -217,6 +249,12 @@ def main():
         metavar="PATH",
         help="Save each composed receipt as a .docx file to PATH before printing "
              "(only works with .docx headers)",
+    )
+    parser.add_argument(
+        "--cooldown",
+        type=float, default=5.0,
+        metavar="SEC",
+        help="Seconds to ignore repeat presses after a print (default: 5)",
     )
     parser.add_argument(
         "--list",
@@ -282,16 +320,26 @@ def main():
         print(f"Header:  {header_path.name} ({mode})")
     if not args.no_text:
         print(f"Lines:   {len(lines)} in {RANDOM_LINES_FILE} (picking {args.lines} per print)")
-    print(f"Printer: {args.printer}")
+    print(f"Printer:  {args.printer}")
+    print(f"Cooldown: {args.cooldown}s between prints")
     if not args.no_text and not lines:
         print(f"({RANDOM_LINES_FILE} not found or empty — printing without text overlay)")
     print()
     print("Press ENTER to print a receipt (Ctrl+C to quit)")
     print()
 
+    last_print_time = 0.0
+
     try:
         while True:
             input()
+
+            elapsed = time.monotonic() - last_print_time
+            if elapsed < args.cooldown:
+                continue
+
+            last_print_time = time.monotonic()
+
             chosen_png = random.choice(pngs)
             img = Image.open(chosen_png)
 
@@ -300,7 +348,8 @@ def main():
                 n = min(args.lines, len(lines))
                 picked = random.sample(lines, n)
                 text = "\n".join(picked)
-                img = overlay_text_on_image(img, text, font_path=args.font)
+                img = overlay_text_on_image(img, text, font_path=args.font,
+                                           font_size_px=args.font_size)
                 label = f"{chosen_png.name} + {n} line(s)"
 
             print(f"  Printing {label}...")
